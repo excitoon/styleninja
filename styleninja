@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+
+import argparse
+import fnmatch
+import json
+import os
+import re
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('paths', type=str, default=['./'], nargs='*', help='path to process')
+args = parser.parse_args()
+
+config_filename = os.path.expandvars('$HOME/.styleninjarc')
+config = json.loads(open(config_filename, 'r').read())
+
+def make_error(line, message):
+    return { 'line': line+1, 'message': message }
+
+def check_tabs(lines):
+    errors = []
+    for i, line in enumerate(lines):
+        if line.find('\t') != -1:
+            errors.append(make_error(i, 'Tab symbol has occurred.'))
+    return errors
+
+def check_line_endings(lines):
+    errors = []
+    for i, line in enumerate(lines):
+        if re.search('[ \t\r]$', line) != None:
+            errors.append(make_error(i, 'Trailing whitespace has occurred.'))
+    return errors
+
+def check_last_line(lines):
+    errors = []
+    last_lines = lines[-2:]
+    if len(last_lines) == 1 and last_lines[0] == '':
+        errors.append(make_error(len(lines)-1, 'Last line in empty file is empty.'))
+    if len(last_lines) == 2 and last_lines[1] != '' and last_lines[0] != '':
+        errors.append(make_error(len(lines)-1, 'No newline at end of file.'))
+    if len(last_lines) == 2 and last_lines[1] == '' and last_lines[0] == '':
+        errors.append(make_error(len(lines)-1, 'Too many newlines at end of file.'))
+    return errors
+
+def process(filename):
+    errors = []
+    try:
+        lines = open(filename, 'r').read().split('\n')
+        errors += check_tabs(lines)
+        errors += check_line_endings(lines)
+        errors += check_last_line(lines)
+    except UnicodeDecodeError:
+        errors.append(make_error(-1, 'Can\'t read file.'))
+    for error in errors:
+        error.update({ 'filename': filename })
+    return errors
+
+files = []
+for path in args.paths:
+    if os.path.isfile(path):
+        for pattern in config['extensions']:
+            if fnmatch.fnmatch(path, pattern):
+                files.append(path)
+                break
+    for root, dirnames, filenames in os.walk(path):
+        for filename in filenames:
+            for pattern in config['extensions']:
+                if fnmatch.fnmatch(filename, pattern):
+                    files.append(os.path.join(root, filename))
+                    break
+
+errors = []
+for file in files:
+    errors += process(file)
+for error in errors:
+    print(error['filename'] + '(' + str(error['line']) + '): ' + error['message'])
