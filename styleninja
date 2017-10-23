@@ -2,13 +2,17 @@
 
 import argparse
 import fnmatch
+import itertools
 import json
 import os
 import re
 
+import grammar
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('paths', type=str, default=['./'], nargs='*', help='path to process')
+parser.add_argument('--squeeze', action='store_true', help='removes comments and extra whitespace')
 args = parser.parse_args()
 
 config_filename = os.path.expandvars('$HOME/.styleninjarc')
@@ -42,6 +46,18 @@ def check_last_line(lines):
         errors.append(make_error(len(lines)-1, 'Too many newlines at end of file.'))
     return errors
 
+def check_indents(lines):
+    errors = []
+    for i, line in enumerate(lines):
+        indent_length = len(re.search('^( *)', line).group(1))
+        if indent_length % 4 != 0:
+            errors.append(make_error(i, 'Wrong indent has occurred.'))
+    return errors
+
+def check_dummy(lines):
+    errors = []
+    return errors
+
 def process(filename):
     errors = []
     try:
@@ -49,6 +65,8 @@ def process(filename):
         errors += check_tabs(lines)
         errors += check_line_endings(lines)
         errors += check_last_line(lines)
+        errors += check_indents(lines)
+        errors += check_dummy(lines)
     except UnicodeDecodeError:
         errors.append(make_error(-1, 'Can\'t read file.'))
     for error in errors:
@@ -69,8 +87,17 @@ for path in args.paths:
                     files.append(os.path.join(root, filename))
                     break
 
-errors = []
-for file in files:
-    errors += process(file)
-for error in errors:
-    print(error['filename'] + '(' + str(error['line']) + '): ' + error['message'])
+if args.squeeze:
+    for file in files:
+        blocks = grammar.parse(open(file, 'r').read())
+        filtered = list(filter(lambda block: block['type'] != 'newline' and block['type'] != 'comment' and block['type'] != 'whitespace', blocks))
+        nothing = [{ 'type': 'nothing', 'data': '' }]
+        prev = itertools.chain(nothing, filtered)
+        next = itertools.chain(filtered, nothing)
+        open(file, 'w').write(''.join(map(lambda p: p[0]['data'] + ' ' if (p[0]['type'] == 'name' or p[0]['type'] == 'integer') and (p[1]['type'] == 'name' or p[1]['type'] == 'integer') else p[0]['data'] + '\n' if p[0]['type'] == 'directive' or p[0]['type'] != 'nothing' and p[1]['type'] == 'directive' else p[0]['data'], zip(prev, next))))
+else:
+    errors = []
+    for file in files:
+        errors += process(file)
+    for error in errors:
+        print(error['filename'] + '(' + str(error['line']) + '): ' + error['message'])
