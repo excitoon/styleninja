@@ -16,7 +16,7 @@ parser.add_argument('--squeeze', action='store_true', help='removes comments and
 parser.add_argument('--debug', action='store_true', help='prints brackets tree')
 args = parser.parse_args()
 
-config_filename = os.path.expandvars('$HOME/.styleninjarc')
+config_filename = os.path.expanduser('~/.styleninjarc')
 config = json.loads(open(config_filename, 'r').read())
 
 def make_error(line, message):
