@@ -67,6 +67,38 @@ def check_indents(lines):
             errors.append(make_error(i, 'Wrong indent has occurred.'))
     return errors
 
+def check_indents_smart(lines):
+    errors = []
+    last_line = -1
+    blocks = grammar.parse_raw('\n'.join(lines))
+    brackets = grammar.parse_blocks(blocks)
+    curlies = 0
+
+    def check_indent(pos, level):
+        nonlocal errors
+        nonlocal lines
+        nonlocal last_line
+        line = get_line(lines, pos)
+        if line == last_line:
+            return
+        indent_length = len(re.search('^( *)', lines[line]).group(1))
+        if indent_length != level * 4:
+            errors.append(make_error(line, 'Wrong indent has occurred.'))
+        last_line = line
+    
+    def check(level, brackets):
+        for bracket in brackets:
+            if bracket['type'] in ('newline', 'whitespace', 'comment'):
+                continue
+            check_indent(bracket['pos'], level)
+            if isinstance(bracket['data'], list):
+                check(level + 1 if bracket['type'] == '{' else level, bracket['data'])
+                check_indent(bracket['end']-1, level)
+
+    check(0, brackets)
+    
+    return errors
+
 def check_dummy(lines):
     errors = []
     return errors
@@ -79,6 +111,7 @@ def process(filename):
         errors += check_line_endings(lines)
         errors += check_last_line(lines)
         errors += check_indents(lines)
+        errors += check_indents_smart(lines)
         errors += check_dummy(lines)
     except UnicodeDecodeError:
         errors.append(make_error(-1, 'Can\'t read file.'))
@@ -123,6 +156,7 @@ elif args.debug:
                 if is_list:
                     print_with_prefix(prefix + '----', bracket['data'])
                     print(prefix, '})]'['{(['.find(bracket['type'])])
+
         print_with_prefix('', brackets)
 
 else:
