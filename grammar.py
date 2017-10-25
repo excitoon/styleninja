@@ -1,7 +1,7 @@
 import re
 
 
-def parse(data):
+def parse_raw(data):
     blocks = []
     pos = 0
     last_pos = 0
@@ -17,14 +17,13 @@ def parse(data):
         nonlocal last_pos
         nonlocal data
         nonlocal blocks
-        begin = last_pos
-        end = pos
-        if begin == end:
+        if pos == last_pos:
             return
-        if len(blocks) == 0 or blocks[-1]['type'] != type or blocks[-1]['type'] == 'newline':
-            blocks.append({ 'type': type, 'data': data[begin:end] })
+        selection = data[last_pos:pos]
+        if len(blocks) == 0 or blocks[-1]['type'] != type or type == 'newline' or type == 'unknown':
+            blocks.append({ 'type': type, 'data': selection, 'pos': last_pos })
         else:
-            blocks[-1]['data'] += data[begin:end]
+            blocks[-1]['data'] += selection
         last_pos = pos
 
     def last_blocks_from(type):
@@ -111,7 +110,7 @@ def parse(data):
             delimiter = match.group(2)
             pos += len(match.group(0))
             match_end = data[pos:].find(')' + delimiter + '"')
-            pos = match_end + pos if match_end != -1 else len(data)
+            pos = match_end + pos + 2 if match_end != -1 else len(data)
             set_type('string')
         elif re.search('[0-9]', symbol) != None:
             pos += 1
@@ -136,3 +135,37 @@ def parse(data):
             set_type('unknown')
 
     return blocks
+
+def parse_blocks(blocks):
+    pos = 0
+    last_pos = 0
+
+    def parse_blocks_until(until):
+        nonlocal pos
+        nonlocal last_pos
+        nonlocal blocks
+        data = []
+
+        open_blocks = '{[('
+        close_blocks = '}])'
+
+        while pos < len(blocks):
+            block = blocks[pos]
+            
+            open_pos = open_blocks.find(block['data'])
+            close_pos = close_blocks.find(block['data'])
+            if block['type'] == 'unknown' and open_pos != -1:
+                begin = pos
+                pos += 1
+                internal = parse_blocks_until(close_blocks[open_pos])
+                data.append({ 'type': block['data'], 'data': internal, 'pos': begin, 'end': pos })
+            elif block['type'] == 'unknown' and block['data'] == until:
+                pos += 1
+                return data
+            else:
+                pos += 1
+                data.append(block)
+
+        return data
+
+    return parse_blocks_until('the_very_end')
