@@ -94,7 +94,7 @@ def check_indents_smart(lines):
         new_statement = True
         last_non_whitespace_bracket = None
         for bracket in brackets:
-            if bracket['type'] in ('newline', 'whitespace', 'comment'):
+            if bracket['type'] in ('newline', 'whitespace', 'comment', 'directive'):
                 continue
             line = get_line(lines, bracket['pos'])
             if new_statement:
