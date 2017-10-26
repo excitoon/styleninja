@@ -89,15 +89,15 @@ def check_indents_smart(lines):
     def is_access_specifier(bracket):
         return bracket != None and bracket['type'] == 'name' and bracket['data'] in ('public', 'private', 'protected')
 
-    def check(level, brackets):
-        last_statement_first_line = 0
+    def check(level, brackets, in_round_brackets):
+        last_statement_first_line = None
         new_statement = True
         last_non_whitespace_bracket = None
         for bracket in brackets:
             if bracket['type'] in ('newline', 'whitespace', 'comment', 'directive'):
                 continue
             line = get_line(lines, bracket['pos'])
-            if new_statement:
+            if new_statement and not in_round_brackets:
                 last_statement_first_line = line
                 new_statement = False
             expected_level = level if line == last_statement_first_line or bracket['type'] == '{' else level+1
@@ -109,13 +109,13 @@ def check_indents_smart(lines):
             if bracket['type'] == 'unknown' and bracket['data'] == ':' and is_access_specifier(last_non_whitespace_bracket):
                 new_statement = True
             if isinstance(bracket['data'], list):
-                check(level + 1 if bracket['type'] == '{' else level, bracket['data'])
+                check(level + 1 if bracket['type'] == '{' else level, bracket['data'], bracket['type'] == '(')
                 check_indent(bracket['end']-1, level)
                 if bracket['type'] == '{':
                     new_statement = True
             last_non_whitespace_bracket = bracket
 
-    check(0, brackets)
+    check(0, brackets, False)
     
     return errors
 
