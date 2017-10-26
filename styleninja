@@ -87,13 +87,24 @@ def check_indents_smart(lines):
         last_line = line
     
     def check(level, brackets):
+        last_statement_line = 0
+        new_statement = True
         for bracket in brackets:
             if bracket['type'] in ('newline', 'whitespace', 'comment'):
                 continue
-            check_indent(bracket['pos'], level)
+            line = get_line(lines, bracket['pos'])
+            if new_statement:
+                last_statement_line = line
+                new_statement = False
+            expected_level = level if new_statement or line == last_statement_line or bracket['type'] == '{' else level+1
+            check_indent(bracket['pos'], expected_level)
+            if bracket['type'] == 'unknown' and bracket['data'] == ';':
+                new_statement = True
             if isinstance(bracket['data'], list):
                 check(level + 1 if bracket['type'] == '{' else level, bracket['data'])
                 check_indent(bracket['end']-1, level)
+                if bracket['type'] == '{':
+                    new_statement = True
 
     check(0, brackets)
     
