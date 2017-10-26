@@ -105,6 +105,18 @@ def parse_raw(data):
                 else:
                     pos += 1
             set_type('string')
+        elif symbol == '\'':
+            pos += 1
+            while pos < len(data):
+                symbol = data[pos]
+                if symbol == '\\' and (next_symbol == '\'' or next_symbol == '\\'):
+                    pos += 2
+                elif symbol == '\'':
+                    pos += 1
+                    break
+                else:
+                    pos += 1
+            set_type('character')
         elif save_match(re.search('^(|u8?|U|L)?R"([^()\n\\ ]{0,16})\\(', data[pos:pos+21])) != None:
             prefix = match.group(1)
             delimiter = match.group(2)
