@@ -170,9 +170,9 @@ def parse_blocks(blocks):
                 begin = pos
                 pos += 1
                 internal = parse_blocks_until(close_blocks[open_pos])
-                data.append({ 'type': block['data'], 'data': internal, 'pos': blocks[begin]['pos'], 'end': blocks[pos-1]['pos']+1 })
-            elif block['type'] == 'unknown' and block['data'] == until:
+                data.append({ 'type': block['data'], 'data': internal, 'pos': blocks[begin]['pos'], 'end': blocks[pos]['pos']+1 })
                 pos += 1
+            elif block['type'] == 'unknown' and block['data'] == until:
                 return data
             else:
                 pos += 1

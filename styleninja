@@ -24,15 +24,42 @@ def make_error(line, message):
 
 def get_line(lines, pos):
     row = 0
-    column = 0
     for line in lines:
         if pos > len(line):
             pos -= len(line) + 1
             row += 1
         else:
             return row
-    print(row)
     return row
+
+def set_lines_in_brackets(brackets, lines, row=0, col=0, pos=0):
+
+    def go_to_pos(goal_pos):
+        nonlocal lines
+        nonlocal row
+        nonlocal col
+        nonlocal pos
+        while row < len(lines):
+            line_pos = pos-col
+            if goal_pos-line_pos > len(lines[row]):
+                col = 0
+                pos = line_pos + len(lines[row]) + 1
+                row += 1
+            else:
+                col = goal_pos-line_pos
+                pos = goal_pos
+                break
+
+    for bracket in brackets:
+        if 'pos' in bracket:
+            go_to_pos(bracket['pos'])
+            bracket['line'] = row
+        if isinstance(bracket['data'], list):
+            (row, col, pos) = set_lines_in_brackets(bracket['data'], lines, row=row, col=col, pos=pos)
+        if 'end' in bracket:
+            go_to_pos(bracket['end'])
+            bracket['end_line'] = row
+    return (row, col, pos)
 
 def check_tabs(lines):
     errors = []
@@ -69,16 +96,15 @@ def check_indents(lines):
 
 def check_indents_smart(lines):
     errors = []
-    last_line = -1
+    last_line = None
     blocks = grammar.parse_raw('\n'.join(lines))
     brackets = grammar.parse_blocks(blocks)
-    curlies = 0
+    set_lines_in_brackets(brackets, lines)
 
-    def check_indent(pos, level):
+    def check_indent(line, level):
         nonlocal errors
         nonlocal lines
         nonlocal last_line
-        line = get_line(lines, pos)
         if line == last_line:
             return
         indent_length = len(re.search('^( *)', lines[line]).group(1))
@@ -96,21 +122,21 @@ def check_indents_smart(lines):
         for bracket in brackets:
             if bracket['type'] in ('newline', 'whitespace', 'comment', 'directive'):
                 continue
-            line = get_line(lines, bracket['pos'])
+            line = bracket['line']
             if new_statement and not in_round_brackets:
                 last_statement_first_line = line
                 new_statement = False
             expected_level = level if line == last_statement_first_line or bracket['type'] == '{' else level+1
             if is_access_specifier(bracket):
                 expected_level -= 1
-            check_indent(bracket['pos'], expected_level)
+            check_indent(line, expected_level)
             if bracket['type'] == 'unknown' and bracket['data'] == ';':
                 new_statement = True
             if bracket['type'] == 'unknown' and bracket['data'] == ':' and is_access_specifier(last_non_whitespace_bracket):
                 new_statement = True
             if isinstance(bracket['data'], list):
                 check(level + 1 if bracket['type'] == '{' else level, bracket['data'], bracket['type'] == '(')
-                check_indent(bracket['end']-1, level)
+                check_indent(bracket['end_line'], level)
                 if bracket['type'] == '{':
                     new_statement = True
             last_non_whitespace_bracket = bracket
