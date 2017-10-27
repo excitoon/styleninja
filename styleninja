@@ -6,6 +6,7 @@ import itertools
 import json
 import os
 import re
+import sys
 
 import grammar
 
@@ -208,6 +209,8 @@ elif args.debug:
 else:
     errors = []
     for file in files:
-        errors += process(file)
+        errors += sorted(process(file), key=lambda e: e['line'])
     for error in errors:
         print(error['filename'] + '(' + str(error['line']) + '): ' + error['message'])
+    if len(errors) > 0:
+        sys.exit(1)
