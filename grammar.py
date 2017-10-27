@@ -142,6 +142,9 @@ def parse_raw(data):
                 else:
                     pos += 1
             set_type('name')
+        elif symbol+next_symbol in ('->', '::', '||', '&&', '==', '!='):
+            pos += 2
+            set_type('operator')
         else:
             pos += 1
             set_type('unknown')
@@ -163,10 +166,22 @@ def parse_blocks(blocks):
 
         while pos < len(blocks):
             block = blocks[pos]
-            
+
+            def is_left_shift():
+                nonlocal block
+                nonlocal blocks
+                nonlocal pos
+                return block['type'] == 'unknown' and block['data'] == '<' and pos < len(blocks)-1 and blocks[pos+1]['type'] == 'unknown' and blocks[pos+1]['data'] == '<'
+
             open_pos = open_blocks.find(block['data'])
             close_pos = close_blocks.find(block['data'])
-            if block['type'] == 'unknown' and open_pos != -1:
+            if is_left_shift():
+                data.append(block)
+                pos += 1
+                block = blocks[pos]
+                data.append(block)
+                pos += 1
+            elif block['type'] == 'unknown' and open_pos != -1:
                 begin = pos
                 pos += 1
                 internal = parse_blocks_until(close_blocks[open_pos])
@@ -178,8 +193,8 @@ def parse_blocks(blocks):
             elif block['type'] == 'unknown' and block['data'] == until:
                 return data
             else:
-                pos += 1
                 data.append(block)
+                pos += 1
 
         return data
 

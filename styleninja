@@ -123,11 +123,29 @@ def check_indents_smart(lines):
     def is_access_specifier(bracket):
         return bracket != None and bracket['type'] == 'name' and bracket['data'] in ('public', 'private', 'protected')
 
-    def check(level, brackets, in_round_brackets):
+    def is_template(bracket):
+        return bracket != None and bracket['type'] == 'name' and bracket['data'] == 'template'
+
+    def is_flow_keyword(bracket):
+        return bracket != None and bracket['type'] == 'name' and bracket['data'] in ('if', 'for', 'while', 'do', 'else')
+
+    def is_case(bracket):
+        return bracket != None and bracket['type'] == 'name' and bracket['data'] in ('case', 'default')
+
+    def is_enum(bracket):
+        return bracket != None and bracket['type'] == 'name' and bracket['data'] == 'enum'
+
+    def check(level, brackets, in_round_brackets=False, in_enum=False):
         nonlocal errors
         last_statement_first_line = None
         new_statement = True
         last_non_whitespace_bracket = None
+        template_statement = False
+        expect_flow_substatement = False
+        expect_flow_brackets = False
+        enum = False
+        case = False
+        flow_keywords = 0
         for bracket in brackets:
             if bracket['type'] in ('newline', 'whitespace', 'comment', 'directive'):
                 continue
@@ -139,22 +157,56 @@ def check_indents_smart(lines):
             if new_statement and not in_round_brackets:
                 last_statement_first_line = line
                 new_statement = False
-            expected_level = level if line == last_statement_first_line or bracket['type'] == '{' else level+1
+                template_statement = is_template(bracket)
+                enum = is_enum(bracket)
+                flow_keywords = 0
+
+            if expect_flow_substatement:
+                last_statement_first_line = line
+                expect_flow_substatement = False
+                flow_keywords += 1
+
+            if expect_flow_brackets:
+                if bracket['type'] == '(':
+                    expect_flow_substatement = True
+                expect_flow_brackets = False
+
+            long_statement = line != last_statement_first_line and bracket['type'] != '{' and not template_statement
+            expected_level = level
+            if flow_keywords > 0:
+                if bracket['type'] == '{':
+                    expected_level += flow_keywords-1
+                else:
+                    expected_level += flow_keywords
+
+            if case and not is_case(bracket):
+                expected_level += 1
+
+            if long_statement:
+                expected_level += 1
+
             if is_access_specifier(bracket):
                 expected_level -= 1
+
             check_indent(line, expected_level)
+            if is_flow_keyword(bracket):
+                expect_flow_brackets = True
+            if is_case(bracket):
+                case = True
+            if bracket['type'] == 'unknown' and bracket['data'] == ',' and in_enum:
+                new_statement = True
             if bracket['type'] == 'unknown' and bracket['data'] == ';':
                 new_statement = True
-            if bracket['type'] == 'unknown' and bracket['data'] == ':' and is_access_specifier(last_non_whitespace_bracket):
+            if bracket['type'] == 'unknown' and bracket['data'] == ':' and (is_access_specifier(last_non_whitespace_bracket) or case):
                 new_statement = True
             if isinstance(bracket['data'], list):
-                check(level + 1 if bracket['type'] == '{' else level, bracket['data'], bracket['type'] == '(')
-                check_indent(bracket['end_line'], level)
+                check(expected_level + 1 if bracket['type'] != '(' else expected_level, bracket['data'], bracket['type'] == '(', enum)
+                check_indent(bracket['end_line'], expected_level)
                 if bracket['type'] == '{':
                     new_statement = True
             last_non_whitespace_bracket = bracket
 
-    check(0, brackets, False)
+    check(0, brackets)
     
     return errors
 
@@ -214,7 +266,7 @@ elif args.debug:
                 print(prefix, bracket['data'] if not is_list else bracket['type'])
                 if is_list:
                     print_with_prefix(prefix + '----', bracket['data'])
-                    print(prefix, '})]'['{(['.find(bracket['type'])])
+                    print(prefix, '})]>'['{([<'.find(bracket['type'])])
 
         print_with_prefix('', brackets)
 
