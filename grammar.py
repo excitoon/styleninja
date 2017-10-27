@@ -122,7 +122,7 @@ def parse_raw(data):
             delimiter = match.group(2)
             pos += len(match.group(0))
             match_end = data[pos:].find(')' + delimiter + '"')
-            pos = match_end + pos + 2 if match_end != -1 else len(data)
+            pos = match_end + pos + 2 + len(delimiter) if match_end != -1 else len(data)
             set_type('string')
         elif re.search('[0-9]', symbol) != None:
             pos += 1
@@ -170,6 +170,9 @@ def parse_blocks(blocks):
                 begin = pos
                 pos += 1
                 internal = parse_blocks_until(close_blocks[open_pos])
+                if pos == len(blocks):
+                    data.append({ 'type': 'truncate', 'data': internal, 'pos': blocks[begin]['pos'], 'end': blocks[pos-1]['pos']+len(blocks[pos-1]['data']) })
+                    return data
                 data.append({ 'type': block['data'], 'data': internal, 'pos': blocks[begin]['pos'], 'end': blocks[pos]['pos']+1 })
                 pos += 1
             elif block['type'] == 'unknown' and block['data'] == until:

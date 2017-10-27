@@ -15,6 +15,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('paths', type=str, default=['./'], nargs='*', help='path to process')
 parser.add_argument('--squeeze', action='store_true', help='removes comments and extra whitespace')
 parser.add_argument('--debug', action='store_true', help='prints brackets tree')
+parser.add_argument('--test', action='store_true', help='internal testing mode')
 args = parser.parse_args()
 
 config_filename = os.path.expanduser('~/.styleninjarc')
@@ -22,6 +23,12 @@ config = json.loads(open(config_filename, 'r').read())
 
 def make_error(line, message):
     return { 'line': line+1, 'message': message }
+
+def errors_to_text(errors):
+    text = ''
+    for error in errors:
+        text += error['filename'] + '(' + str(error['line']) + '): ' + error['message'] + '\n'
+    return text
 
 def get_line(lines, pos):
     row = 0
@@ -117,12 +124,17 @@ def check_indents_smart(lines):
         return bracket != None and bracket['type'] == 'name' and bracket['data'] in ('public', 'private', 'protected')
 
     def check(level, brackets, in_round_brackets):
+        nonlocal errors
         last_statement_first_line = None
         new_statement = True
         last_non_whitespace_bracket = None
         for bracket in brackets:
             if bracket['type'] in ('newline', 'whitespace', 'comment', 'directive'):
                 continue
+            if bracket['type'] == 'truncate':
+                errors.append(make_error(line, 'File is truncated.'))
+                continue
+
             line = bracket['line']
             if new_statement and not in_round_brackets:
                 last_statement_first_line = line
@@ -210,7 +222,25 @@ else:
     errors = []
     for file in files:
         errors += sorted(process(file), key=lambda e: e['line'])
-    for error in errors:
-        print(error['filename'] + '(' + str(error['line']) + '): ' + error['message'])
+    if args.test:
+        expected = []
+        for file in files:
+            def get_results(input_file, results_file):
+                expected = []
+                lines = open(results_file, 'r').read().split('\n')
+                for row, line in enumerate(lines):
+                    if len(line) > 0:
+                        expected.append({ 'filename': input_file, 'line': row+1, 'message': line })
+                return expected
+            expected += get_results(file, file+'.result')
+        result = errors_to_text(errors)
+        expected = errors_to_text(expected)
+        if result == expected:
+            sys.exit(0)
+        else:
+            import difflib
+            print(''.join(difflib.ndiff(result.splitlines(keepends=True), expected.splitlines(keepends=True))), end='')
+            sys.exit(1)
+    print(errors_to_text(errors), end='')
     if len(errors) > 0:
         sys.exit(1)
