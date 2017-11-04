@@ -19,6 +19,11 @@ parser.add_argument('--test', action='store_true', help='internal testing mode')
 args = parser.parse_args()
 
 config_filename = os.path.expanduser('~/.styleninjarc')
+if not os.path.isfile(config_filename):
+    def get_script_path():
+        return os.path.dirname(os.path.realpath(sys.argv[0]))
+    import shutil
+    shutil.copyfile(get_script_path() + '/.styleninjarc', config_filename)
 config = json.loads(open(config_filename, 'r').read())
 
 def make_error(line, message):
