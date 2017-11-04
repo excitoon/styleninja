@@ -143,11 +143,12 @@ def check_indents_smart(lines):
     def is_namespace(bracket):
         return bracket != None and bracket['type'] == 'name' and bracket['data'] == 'namespace'
 
-    def check(level, brackets, in_round_brackets=False, in_enum=False):
+    def check(level, brackets, in_big_indent=False, in_round_brackets=False, in_enum=False):
         nonlocal errors
         last_statement_first_line = None
         new_statement = True
         namespace = False
+        big_indent = False
         last_non_whitespace_bracket = None
         template_statement = False
         expect_flow_substatement = False
@@ -163,6 +164,10 @@ def check_indents_smart(lines):
                 continue
 
             line = bracket['line']
+
+            if new_statement:
+                big_indent = False
+
             if new_statement and not in_round_brackets:
                 last_statement_first_line = line
                 new_statement = False
@@ -193,7 +198,15 @@ def check_indents_smart(lines):
                 expected_level += 1
 
             if long_statement:
-                expected_level += 1
+                if in_round_brackets:
+                    if in_big_indent:
+                        expected_level += 1
+                    else:
+                        expected_level += config['big_indent']
+                        big_indent = True
+                else:
+                    expected_level += 1
+                    big_indent = True
 
             if is_access_specifier(bracket):
                 expected_level -= 1
@@ -215,7 +228,7 @@ def check_indents_smart(lines):
                     sublevel += config['namespace_indent']
                 elif bracket['type'] != '(':
                     sublevel += 1
-                check(sublevel, bracket['data'], bracket['type'] == '(', enum)
+                check(sublevel, bracket['data'], in_big_indent=big_indent or in_big_indent, in_round_brackets=bracket['type'] == '(', in_enum=enum)
                 check_indent(bracket['end_line'], expected_level)
                 if bracket['type'] == '{':
                     new_statement = True

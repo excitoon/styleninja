@@ -1,4 +1,5 @@
 {
     "extensions": [ "*.c", "*.cpp", "*.cxx", "*.h", "*.hpp" ],
-    "namespace_indent": 0
+    "namespace_indent": 0,
+    "big_indent": 2
 }

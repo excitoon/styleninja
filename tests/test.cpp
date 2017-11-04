@@ -34,14 +34,14 @@ private:
     };
 
     void f(int a,
-        int b,
-        int c)
+            int b,
+            int c)
     {
     }
 
     void long_function_name(
-        int b,
-        int c)
+            int b,
+            int c)
     {
     bad_indent;
         b = 2 >> c;
@@ -72,6 +72,10 @@ int main()
                 << "b"
                 << "\n";
 
+    std::copy(a.begin(),
+            a.end(), std::advance(
+                a+b+c+d));
+
     if (a < 0)
         if (1)
             for (int a = 0; i < 1; ++i)
@@ -83,6 +87,12 @@ int main()
                 }
             }
     a = 1;
+
+    std::cout << a << b << c
+        << func(
+            a, b, c)
+        << fun2(a, b,
+            c) << "\n";
 
     switch(a)
     {
