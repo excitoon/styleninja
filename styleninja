@@ -211,7 +211,9 @@ def check_indents_smart(lines):
                 new_statement = True
             if isinstance(bracket['data'], list):
                 sublevel = expected_level
-                if bracket['type'] != '(' and not namespace:
+                if namespace:
+                    sublevel += config['namespace_indent']
+                elif bracket['type'] != '(':
                     sublevel += 1
                 check(sublevel, bracket['data'], bracket['type'] == '(', enum)
                 check_indent(bracket['end_line'], expected_level)
