@@ -1,5 +1,8 @@
 #include <asdasd>
 
+namespace x
+{
+
 template <typename A>
 class B
 {
@@ -43,6 +46,8 @@ private:
     bad_indent;
         b = 2 >> c;
     }
+}
+
 }
 
 int main()

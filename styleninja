@@ -135,10 +135,14 @@ def check_indents_smart(lines):
     def is_enum(bracket):
         return bracket != None and bracket['type'] == 'name' and bracket['data'] == 'enum'
 
+    def is_namespace(bracket):
+        return bracket != None and bracket['type'] == 'name' and bracket['data'] == 'namespace'
+
     def check(level, brackets, in_round_brackets=False, in_enum=False):
         nonlocal errors
         last_statement_first_line = None
         new_statement = True
+        namespace = False
         last_non_whitespace_bracket = None
         template_statement = False
         expect_flow_substatement = False
@@ -159,6 +163,7 @@ def check_indents_smart(lines):
                 new_statement = False
                 template_statement = is_template(bracket)
                 enum = is_enum(bracket)
+                namespace = is_namespace(bracket)
                 flow_keywords = 0
 
             if expect_flow_substatement:
@@ -200,7 +205,10 @@ def check_indents_smart(lines):
             if bracket['type'] == 'unknown' and bracket['data'] == ':' and (is_access_specifier(last_non_whitespace_bracket) or case):
                 new_statement = True
             if isinstance(bracket['data'], list):
-                check(expected_level + 1 if bracket['type'] != '(' else expected_level, bracket['data'], bracket['type'] == '(', enum)
+                sublevel = expected_level
+                if bracket['type'] != '(' and not namespace:
+                    sublevel += 1
+                check(sublevel, bracket['data'], bracket['type'] == '(', enum)
                 check_indent(bracket['end_line'], expected_level)
                 if bracket['type'] == '{':
                     new_statement = True
