@@ -95,6 +95,16 @@ int main()
         << fun2(a, b,
             c) << "\n";
 
+    std::cout << (a ? b :
+            c)
+        << e;
+
+    if (a && b && c
+            && d)
+    {
+        e();
+    }
+
     func(func(func(
             arg1, arg2, arg3, func(
                 arg1))));
@@ -105,9 +115,9 @@ int main()
     };
 
     auto xx([]()
-            {
-                something();
-            });
+    {
+        something();
+    });
 
     switch(a)
     {

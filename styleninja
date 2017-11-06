@@ -145,7 +145,7 @@ def check_indents_smart(lines):
     def is_class(bracket):
         return bracket != None and bracket['type'] == 'name' and bracket['data'] in ('class', 'struct')
 
-    def check(level, brackets, in_big_indent=False, in_round_brackets=False, in_enum=False, base_line=-1):
+    def check(level, brackets, in_big_indent=False, in_round_brackets=False, in_enum=False, base_line=-1, base_level=0):
         nonlocal errors
         last_statement_first_line = None
         new_statement = True
@@ -193,6 +193,9 @@ def check_indents_smart(lines):
 
             long_statement = line != last_statement_first_line and bracket['type'] != '{' and not template_statement
             expected_level = level
+            if in_round_brackets and bracket['type'] == '{':
+                expected_level = base_level
+
             if flow_keywords > 0:
                 if bracket['type'] == '{':
                     expected_level += flow_keywords-1
@@ -205,7 +208,7 @@ def check_indents_smart(lines):
             if in_class and not is_class(bracket) and bracket['type'] != '{':
                 expected_level += config['big_indent']
                 big_indent = True
-            elif long_statement:
+            elif long_statement and not in_round_brackets:
                 expected_level += 1
                 big_indent = True
 
@@ -233,7 +236,12 @@ def check_indents_smart(lines):
                     elif bracket['type'] == '(':
                         sub_level += 1 if sub_big_indent else config['big_indent']
                         sub_big_indent = True
-                check(sub_level, bracket['data'], in_big_indent=sub_big_indent, in_round_brackets=bracket['type'] == '(', in_enum=enum, base_line=line)
+                check(sub_level, bracket['data'],
+                        in_big_indent=sub_big_indent,
+                        in_round_brackets=bracket['type'] == '(',
+                        in_enum=enum,
+                        base_line=line,
+                        base_level=expected_level)
                 check_indent(bracket['end_line'], expected_level)
                 if bracket['type'] == '{':
                     new_statement = True
