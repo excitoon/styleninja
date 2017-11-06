@@ -95,6 +95,20 @@ int main()
         << fun2(a, b,
             c) << "\n";
 
+    func(func(func(
+            arg1, arg2, arg3, func(
+                arg1))));
+
+    auto x = []()
+    {
+        something();
+    };
+
+    auto xx([]()
+            {
+                something();
+            });
+
     switch(a)
     {
         case 0:

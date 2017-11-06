@@ -145,7 +145,7 @@ def check_indents_smart(lines):
     def is_class(bracket):
         return bracket != None and bracket['type'] == 'name' and bracket['data'] in ('class', 'struct')
 
-    def check(level, brackets, in_big_indent=False, in_round_brackets=False, in_enum=False):
+    def check(level, brackets, in_big_indent=False, in_round_brackets=False, in_enum=False, base_line=-1):
         nonlocal errors
         last_statement_first_line = None
         new_statement = True
@@ -224,15 +224,16 @@ def check_indents_smart(lines):
             if isinstance(bracket['data'], list):
                 sub_level = expected_level
                 sub_big_indent = big_indent or in_big_indent
-                if namespace:
-                    sub_level += config['namespace_indent']
-                elif bracket['type'] != '(':
-                    sub_level += 1
-                    sub_big_indent = in_big_indent
-                elif bracket['type'] == '(':
-                    sub_level += 1 if sub_big_indent else config['big_indent']
-                    sub_big_indent = True
-                check(sub_level, bracket['data'], in_big_indent=sub_big_indent, in_round_brackets=bracket['type'] == '(', in_enum=enum)
+                if base_line != line:
+                    if namespace:
+                        sub_level += config['namespace_indent']
+                    elif bracket['type'] != '(':
+                        sub_level += 1
+                        sub_big_indent = in_big_indent
+                    elif bracket['type'] == '(':
+                        sub_level += 1 if sub_big_indent else config['big_indent']
+                        sub_big_indent = True
+                check(sub_level, bracket['data'], in_big_indent=sub_big_indent, in_round_brackets=bracket['type'] == '(', in_enum=enum, base_line=line)
                 check_indent(bracket['end_line'], expected_level)
                 if bracket['type'] == '{':
                     new_statement = True
