@@ -46,7 +46,6 @@ def get_line(lines, pos):
     return row
 
 def set_lines_in_brackets(brackets, lines, row=0, col=0, pos=0):
-
     def go_to_pos(goal_pos):
         nonlocal lines
         nonlocal row
@@ -143,6 +142,9 @@ def check_indents_smart(lines):
     def is_namespace(bracket):
         return bracket != None and bracket['type'] == 'name' and bracket['data'] == 'namespace'
 
+    def is_class(bracket):
+        return bracket != None and bracket['type'] == 'name' and bracket['data'] in ('class', 'struct')
+
     def check(level, brackets, in_big_indent=False, in_round_brackets=False, in_enum=False):
         nonlocal errors
         last_statement_first_line = None
@@ -154,7 +156,8 @@ def check_indents_smart(lines):
         expect_flow_substatement = False
         expect_flow_brackets = False
         enum = False
-        case = False
+        in_class = False
+        in_case = False
         flow_keywords = 0
         for bracket in brackets:
             if bracket['type'] in ('newline', 'whitespace', 'comment', 'directive'):
@@ -162,19 +165,21 @@ def check_indents_smart(lines):
             if bracket['type'] == 'truncate':
                 errors.append(make_error(line, 'File is truncated.'))
                 continue
+            in_case |= is_case(bracket)
 
             line = bracket['line']
 
             if new_statement:
                 big_indent = False
-
-            if new_statement and not in_round_brackets:
+                in_class = False
                 last_statement_first_line = line
                 new_statement = False
                 template_statement = is_template(bracket)
                 enum = is_enum(bracket)
                 namespace = is_namespace(bracket)
                 flow_keywords = 0
+
+            in_class |= is_class(bracket)
 
             if expect_flow_substatement:
                 last_statement_first_line = line
@@ -194,41 +199,40 @@ def check_indents_smart(lines):
                 else:
                     expected_level += flow_keywords
 
-            if case and not is_case(bracket):
+            if in_case and not is_case(bracket):
                 expected_level += 1
 
-            if long_statement:
-                if in_round_brackets:
-                    if in_big_indent:
-                        expected_level += 1
-                    else:
-                        expected_level += config['big_indent']
-                        big_indent = True
-                else:
-                    expected_level += 1
-                    big_indent = True
+            if in_class and not is_class(bracket) and bracket['type'] != '{':
+                expected_level += config['big_indent']
+                big_indent = True
+            elif long_statement:
+                expected_level += 1
+                big_indent = True
 
-            if is_access_specifier(bracket):
+            if not in_class and is_access_specifier(bracket):
                 expected_level -= 1
 
             check_indent(line, expected_level)
             if is_flow_keyword(bracket):
                 expect_flow_brackets = True
-            if is_case(bracket):
-                case = True
-            if bracket['type'] == 'unknown' and bracket['data'] == ',' and in_enum:
+            if bracket['type'] == 'unknown' and bracket['data'] == ',' and (in_enum or in_round_brackets):
                 new_statement = True
             if bracket['type'] == 'unknown' and bracket['data'] == ';':
                 new_statement = True
-            if bracket['type'] == 'unknown' and bracket['data'] == ':' and (is_access_specifier(last_non_whitespace_bracket) or case):
+            if bracket['type'] == 'unknown' and bracket['data'] == ':' and (is_access_specifier(last_non_whitespace_bracket) or in_case):
                 new_statement = True
             if isinstance(bracket['data'], list):
-                sublevel = expected_level
+                sub_level = expected_level
+                sub_big_indent = big_indent or in_big_indent
                 if namespace:
-                    sublevel += config['namespace_indent']
+                    sub_level += config['namespace_indent']
                 elif bracket['type'] != '(':
-                    sublevel += 1
-                check(sublevel, bracket['data'], in_big_indent=big_indent or in_big_indent, in_round_brackets=bracket['type'] == '(', in_enum=enum)
+                    sub_level += 1
+                    sub_big_indent = in_big_indent
+                elif bracket['type'] == '(':
+                    sub_level += 1 if sub_big_indent else config['big_indent']
+                    sub_big_indent = True
+                check(sub_level, bracket['data'], in_big_indent=sub_big_indent, in_round_brackets=bracket['type'] == '(', in_enum=enum)
                 check_indent(bracket['end_line'], expected_level)
                 if bracket['type'] == '{':
                     new_statement = True

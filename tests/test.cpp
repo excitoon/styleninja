@@ -12,7 +12,8 @@ template <typename D> class M
 {
 };
 
-class C
+class C: public A, B,
+        protected C
 {
     int b;
     int c;
