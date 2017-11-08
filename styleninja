@@ -12,7 +12,7 @@ import grammar
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('paths', type=str, default=['./'], nargs='*', help='path to process')
+parser.add_argument('paths', type=str, default=['./'], nargs='*', help='paths to process')
 parser.add_argument('--squeeze', action='store_true', help='removes comments and extra whitespace')
 parser.add_argument('--debug', action='store_true', help='prints brackets tree')
 parser.add_argument('--test', action='store_true', help='internal testing mode')
