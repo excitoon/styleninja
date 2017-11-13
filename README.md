@@ -5,11 +5,12 @@ C++ code style checker for styles I use. Compatible with C++11 raw literals.
 ### Command-line options
 
 ```
-styleninja [--squeeze] [paths]
+styleninja [--squeeze] [--trivial] [paths]
 ```
 
 Specify `paths` to scan specific files and directories instead of current directory.
 Specify `--squeeze` to remove extra whitespaces and comments instead of checking (warning, that will rewrite files in-place).
+Specify `--trivial` to check only tabs and whitespace before ends of lines.
 
 ### Configuration
 

@@ -16,6 +16,7 @@ parser.add_argument('paths', type=str, default=['./'], nargs='*', help='paths to
 parser.add_argument('--squeeze', action='store_true', help='removes comments and extra whitespace')
 parser.add_argument('--debug', action='store_true', help='prints brackets tree')
 parser.add_argument('--test', action='store_true', help='internal testing mode')
+parser.add_argument('--trivial', action='store_true', help='only check for tabs and whitespace before ends of lines')
 args = parser.parse_args()
 
 config_filename = os.path.expanduser('~/.styleninjarc')
@@ -255,16 +256,17 @@ def check_dummy(lines):
     errors = []
     return errors
 
-def process(filename):
+def process(filename, trivial):
     errors = []
     try:
         lines = open(filename, 'r').read().split('\n')
         errors += check_tabs(lines)
         errors += check_line_endings(lines)
-        errors += check_last_line(lines)
-        errors += check_indents(lines)
-        errors += check_indents_smart(lines)
-        errors += check_dummy(lines)
+        if not trivial:
+            errors += check_last_line(lines)
+            errors += check_indents(lines)
+            errors += check_indents_smart(lines)
+            errors += check_dummy(lines)
     except UnicodeDecodeError:
         errors.append(make_error(-1, 'Can\'t read file.'))
     for error in errors:
@@ -314,7 +316,7 @@ elif args.debug:
 else:
     errors = []
     for file in files:
-        errors += sorted(process(file), key=lambda e: e['line'])
+        errors += sorted(process(file, args.trivial == True), key=lambda e: e['line'])
     if args.test:
         expected = []
         for file in files:
